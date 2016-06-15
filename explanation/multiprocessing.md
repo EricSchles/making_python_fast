@@ -22,29 +22,31 @@ def for_loop_get_sum(listing):
 ```
 
 ```
-from multiprocessing import Pool,Manager
+from multiprocessing import Pool
+import time
+import random
 
 def generate(listing):
     for elem in listing:
         yield(elem)
 
-def summation(elem,dicter):
-    dicter["current_sum"] += elem
+def summation(elem,current_sum):
+    current_sum += elem
+    return current_sum
 
 def get_sum(listing):
-    manager = Manager()
-    dicter = manager.dict()
-    dicter["current_sum"] = 0
+    current_sum = 0
     get_elem = generate(listing)
     next_elem = next(get_elem)
     pool = Pool()
     while next_elem:
-        pool.apply_async(summation,args=(next_elem,dicter,))
+        current_sum = pool.apply_async(summation,args=(next_elem,current_sum,)).get()
         try:
-        	next_elem = next(get_elem)
+            next_elem = next(get_elem)
         except:
-        	next_elem = False
-    return dicter["current_sum"]
+            next_elem = False
+    return current_sum
+
 ```
 
 The first piece of code should look familiar, you just start off by looping through each element in your list and add them to a storage for the sum.  
@@ -85,62 +87,62 @@ Let's check out our results :)
 ```
 For  5
 standard for loop
-3.0994415283203125e-06
+3.0000000000030003e-06
 multiprocessing version
-0.07303714752197266
+0.026417999999999997
 making use of the built-in sum
-2.86102294921875e-06
+2.9999999999891225e-06
 
 For  50
 standard for loop
-8.106231689453125e-06
+1.0999999999997123e-05
 multiprocessing version
-0.027490854263305664
+0.015411999999999995
 making use of the built-in sum
-3.814697265625e-06
+3.9999999999901226e-06
 
 For  500
 standard for loop
-6.604194641113281e-05
+5.8000000000002494e-05
 multiprocessing version
-0.05739903450012207
+0.072684
 making use of the built-in sum
-1.4066696166992188e-05
+1.0000000000010001e-05
 
 For  1000
 standard for loop
-0.00014591217041015625
+8.500000000000174e-05
 multiprocessing version
-0.39519476890563965
+0.088369
 making use of the built-in sum
-2.4080276489257812e-05
+2.999999999997449e-05
 
 For  10000
 standard for loop
-0.002064943313598633
+0.0008349999999999747
 multiprocessing version
-1.9227430820465088
+0.20216499999999998
 making use of the built-in sum
-0.0001709461212158203
+0.0004909999999999637
 
 For  10000000
 standard for loop
-0.7831029891967773
+0.7506119999999967
 multiprocessing version
-0.5512580871582031
+1.5144509999999975
 making use of the built-in sum
-0.5721879005432129
+0.41331500000000077
 
 For  100000000
 standard for loop
-9.163938999176025
+13.239452999999997
 multiprocessing version
-6.650573968887329
+0.2417210000000125
 making use of the built-in sum
-6.139198064804077
+4.8564250000000015
 ```
 
-I want to draw your attention to the last two entries - when our lists get big multiprocessing really starts to hold it's own.  In fact, we're neck and neck with the builtin sum written in C (which is a real accomplishment for native python code).  
+I want to draw your attention to the last  entry - when our lists get big multiprocessing really starts to hold it's own.  In fact, we've beaten the builtin sum written in C (which is a real accomplishment for native python code).  
 
 ##Example 2
 
@@ -210,27 +212,27 @@ Using just the original list sizes that we used in the last example, we already 
 ```
 For [5,50,500,1000,10000,10000000,100000000]
 standard for loop
-258.19835019111633
+244.6397430896759
 multiprocessing version
-245.44074892997742
+264.5189161300659
 making use of the built-in sum
-273.82003593444824
+239.54285979270935
 
 For [10000000,10000000,10000000,10000000,10000000,10000000,10000000]
 standard for loop
-152.77153706550598
+156.72954392433167
 multiprocessing version
-140.76755905151367
+149.77143096923828
 making use of the built-in sum
-144.79858303070068
+185.66234397888184
 
 For [10000,10000,10000,10000,10000,10000,10000,10000]
 standard for loop
-0.16601991653442383
+0.3023829460144043
 multiprocessing version
-14.650493860244751
+0.7890169620513916
 making use of the built-in sum
-0.21192502975463867
+0.5431420803070068
 ```
 
 There is quiet a bit of interesting stuff happening here.  For cases one and two - doing computation on large data sets, multiprocessing is the clear winner, it even trounces the built-in sum function.  For perspective I included processing on some reasonably small numbers - here we see that multiprocessing does terribly.  Given this context we can see, as our computation becomes more sophisticated and more and more of our computation can be moved into a multithreaded environment, the multiprocessing module will yield significant gains.  It's important to note that it's hard to reason about python code and getting the best performance.  Therefore, whenever possible we must be scientific about our processing time, running experiments, verifying results, and being "computer scientists", reasoning about computation.  For instance, if we compare the previous example with this one, we see a huge decline in performance. The fact that just generating our lists inside of a for-loop and then called the computation for each list, should not lead to a massive decline in performance.  
@@ -338,34 +340,30 @@ def generate(query):
     for elem in query:
         yield(elem)
 
-def summation(elem,dicter):
-    dicter["current_sum"] += elem
+def summation(elem,current_sum):
+    current_sum += elem
         
 def get_sum():
-    manager = Manager()
-    dicter = manager.dict()
-    dicter["current_sum"] = 0
+    current_sum = 0
     query = db.session.query(Data).yield_per(100).enable_eagerloads(False)
     get_elem = generate(query)
     next_elem = next(get_elem)
     pool = Pool()
     while next_elem:
-        pool.apply_async(summation,args=(next_elem.datum,dicter,))
+        current_sum = pool.apply_async(summation,args=(next_elem.datum,current_sum,)).get()
         try:
             next_elem = next(get_elem)
         except:
             next_elem = False
-    return dicter["current_sum"]
+    return current_sum
 
 def get_sum_without_generate():
-    manager = Manager()
-    dicter = manager.dict()
-    dicter["current_sum"] = 0
+    current_sum = 0
     query = db.session.query(Data).yield_per(100).enable_eagerloads(False)
     pool = Pool()
     for elem in query:
-        pool.apply_async(summation,args=(elem.datum,dicter,))
-    return dicter["current_sum"]
+        current_sum = pool.apply_async(summation,args=(elem.datum,current_sum,)).get()
+    return current_sum
 
 def for_loop_get_sum(listing):
     summation = 0
@@ -391,9 +389,9 @@ I decided to add two ways to iterate through our lazily loaded data.  Making use
 
 ```
 get_sum_generator
-58.781365
+124.898804
 get_sum_for loop
-85.068554
+132.483861
 ```
 
 As this data states.  We could try lowering our load to 1.  But this can lead to trouble if we try loading the next element from the database before we finish processing the current element.  100 elements is a safe benchmark for ensuring all of the necessary data is loaded.

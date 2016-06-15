@@ -6,19 +6,25 @@ def get_element(listing):
     for elem in listing:
         yield(elem)
 
-def summation(elem,dicter,list_size):
-    dicter[list_size] += elem
+def summation(elem,current_sum):
+    current_sum += elem
+    return current_sum
     
 def get_sum(listing,dicter,list_size):
-    dicter[list_size] = 0
+    current_sum = 0
     get_elem = generate(listing)
     next_elem = next(get_elem)
     pool = Pool()
     while next_elem:
-        pool.apply_async(summation,args=(next_elem,dicter,list_size,))
-        try:next_elem = next(get_elem)
-        except:next_elem = False
-
+        current_sum = pool.apply_async(summation,args=(next_elem,current_sum,)).get()
+        try:
+            next_elem = next(get_elem)
+        except:
+            next_elem = False
+    pool.close()
+    pool.join()
+    dicter[list_size] = current_sum
+            
 def for_loop_get_sum(listing):
     summation = 0
     for i in listing:
@@ -37,8 +43,12 @@ def get_sums(sizes):
     pool = Pool()
     while next_list:
         pool.apply_async(get_sum,args=(next_list,dicter,list_size,))
-        try:next_list,list_size = next(to_compute)
-        except: next_list = False
+        try:
+            next_list,list_size = next(to_compute)
+        except:
+            next_list = False
+    pool.close()
+    pool.join()
     return dicter
     
 def time_comparison(list_sizes):

@@ -6,23 +6,22 @@ def generate(listing):
     for elem in listing:
         yield(elem)
 
-def summation(elem,dicter):
-    dicter["current_sum"] += elem
-    
+def summation(elem,current_sum):
+    current_sum += elem
+    return current_sum
+
 def get_sum(listing):
-    manager = Manager()
-    dicter = manager.dict()
-    dicter["current_sum"] = 0
+    current_sum = 0
     get_elem = generate(listing)
     next_elem = next(get_elem)
     pool = Pool()
     while next_elem:
-        pool.apply_async(summation,args=(next_elem,dicter,))
+        current_sum = pool.apply_async(summation,args=(next_elem,current_sum,)).get()
         try:
             next_elem = next(get_elem)
         except:
             next_elem = False
-    return dicter["current_sum"]
+    return current_sum
 
 def for_loop_get_sum(listing):
     summation = 0

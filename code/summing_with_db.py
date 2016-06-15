@@ -7,34 +7,31 @@ def generate(query):
     for elem in query:
         yield(elem)
 
-def summation(elem,dicter):
-    dicter["current_sum"] += elem
+def summation(elem,current_sum):
+    current_sum += elem
+    return current_sum
         
 def get_sum():
-    manager = Manager()
-    dicter = manager.dict()
-    dicter["current_sum"] = 0
+    current_sum = 0
     query = db.session.query(Data).yield_per(100).enable_eagerloads(False)
     get_elem = generate(query)
     next_elem = next(get_elem)
     pool = Pool()
     while next_elem:
-        pool.apply_async(summation,args=(next_elem.datum,dicter,))
+        current_sum = pool.apply_async(summation,args=(next_elem.datum,current_sum,)).get()
         try:
             next_elem = next(get_elem)
         except:
             next_elem = False
-    return dicter["current_sum"]
+    return current_sum
 
 def get_sum_without_generate():
-    manager = Manager()
-    dicter = manager.dict()
-    dicter["current_sum"] = 0
+    current_sum = 0
     query = db.session.query(Data).yield_per(100).enable_eagerloads(False)
     pool = Pool()
     for elem in query:
-        pool.apply_async(summation,args=(elem.datum,dicter,))
-    return dicter["current_sum"]
+        current_sum = pool.apply_async(summation,args=(elem.datum,current_sum,)).get()
+    return current_sum
 
 def for_loop_get_sum(listing):
     summation = 0
@@ -54,4 +51,4 @@ def time_comparison():
     
 if __name__ == '__main__':
     time_comparison()
-    
+   
