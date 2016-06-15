@@ -239,14 +239,48 @@ While this isn't intuitive, we can glean some learning about how to structure co
 
 However, it's important to note, that this is not the only context for data processing, or manipulating large data in python.  I must reiterate, up until this point, we've been using a "worked" example that doesn't come up often in most programming jobs.  What does come up a lot in practice is working with databases and doing data cleaning, processing and other kinds of work.  In the context of data stored in a database, multiprocessing has a lot of value.  However it will not always be the best solution.  
 
-In the context of databases for doing multiprocessing in Python we can find real use cases.  It's important to have an enumeration of the possible strategies we can use to make data processing as performant as possible.  
+##Multiprocessing with Databases
 
-* Doing the computation on the server side
-* Doing the computation via Spark,hadoop or some other big data framework
-* Taking advantage of a framework or some code implemented in a faster language
-* Applying multiprocessing:
-	* precomputing as much as possible and sending results to the database
-	* using lazy loading to get data piecemeal
-	* using intermediate representations of results and updating as new data comes in
-* Making use of data pipelines to make your data processing fast
+For dealing with the database context, we'll be making use of postgres and a very minimal Flask app.  
+
+To install postgres on MacOS - `brew install postgres`
+
+To install postgres on Ubuntu - `sudo apt install postgresql`
+
+Here's a list of commands for reference for postgres
+
+* Listing all the users: `psql -l`
+* Create user: `createuser -P -s -e -d username`
+* Create DB: `createdb [database_name]`
+* running postgresql: `psql [database_name]`
+* delete DB: `dropdb [database_name]`
+
+
+So we are going to create a new user:
+
+`createuser -P -s -e -d eric_schles`
+
+password: `1234`
+
+And we'll create a database:
+
+`createdb fake_data -U eric_schles`
+
+```
+from flask import Flask
+from flask.ext.script import Manager
+from flask.ext.sqlalchemy import SQLAlchemy
+from flask.ext.migrate import Migrate, MigrateCommand
+
+username,password = "eric_schles","1234"
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://"+username+":"+password+"@localhost/backpage_ads"
+db = SQLAlchemy(app)
+migrate = Migrate(app,db)
+
+manager = Manager(app)
+manager.add_command('db', MigrateCommand)
+
+from app import models
+```
 

@@ -18,8 +18,10 @@ def get_sum(listing):
     pool = Pool()
     while next_elem:
         pool.apply_async(summation,args=(next_elem,dicter,))
-        try:next_elem = next(get_elem)
-        except:next_elem = False
+        try:
+            next_elem = next(get_elem)
+        except:
+            next_elem = False
     return dicter["current_sum"]
 
 def for_loop_get_sum(listing):
@@ -31,17 +33,17 @@ def for_loop_get_sum(listing):
 def time_comparison(list_size):
     to_compute = [random.randint(0,10000) for _ in range(list_size)]
     print("standard for loop")
-    start = time.time()
+    start = time.clock()
     for_loop_get_sum(to_compute)
-    print(time.time() - start)
+    print(time.clock() - start)
     print("multiprocessing version")
-    start = time.time()
+    start = time.clock()
     get_sum(to_compute)
-    print(time.time() - start)
+    print(time.clock() - start)
     print("making use of the built-in sum")
-    start = time.time()
+    start = time.clock()
     sum(to_compute)
-    print(time.time() - start)
+    print(time.clock() - start)
 
 if __name__ == '__main__':
     for size in [5,50,500,1000,10000,10000000,100000000]:
