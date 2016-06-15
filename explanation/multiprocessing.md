@@ -266,21 +266,139 @@ And we'll create a database:
 
 `createdb fake_data -U eric_schles`
 
+
+__init__.py:
+
 ```
 from flask import Flask
-from flask.ext.script import Manager
 from flask.ext.sqlalchemy import SQLAlchemy
-from flask.ext.migrate import Migrate, MigrateCommand
 
 username,password = "eric_schles","1234"
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://"+username+":"+password+"@localhost/backpage_ads"
 db = SQLAlchemy(app)
-migrate = Migrate(app,db)
-
-manager = Manager(app)
-manager.add_command('db', MigrateCommand)
 
 from app import models
 ```
+
+models.py:
+
+```
+from app import db
+class Data(db.Model):
+    __tablename__ = 'data'
+    id = db.Column(db.Integer, primary_key=True)
+    datum = db.Column(db.Integer)
+    
+    def __init__(self,datum):
+        self.datum = datum
+```
+
+Now we open a command line and type:
+
+`python`
+
+```
+>>> from app.models import db
+>>> db.create_all()
+```
+
+Now that we have our database all set up, let's fill it with data:
+
+fill_db.py:
+
+```
+from app.models import Data
+from app import db
+import random
+
+for _ in range(10000):
+    data = Data(random.randint(0,100000))
+    db.session.add(data)
+    db.session.commit()
+```
+
+Now let's carry out the same experiment, except with our database.  
+
+Instead of focusing on the case with native data structures, we'll simply compare two ways of loading data from our database.  We'll always use lazy load from our database via:
+
+`query = db.session.query(Data).yield_per(100).enable_eagerloads(False)`
+
+Which loads data 100 elements at a time instead of loading all of our database table upfront.  Often times, just loading all of our data into memory can severely reduce our performance.  Instead, it's far better to simply load a small set of our data and start processing over the entire data set.
+
+Other than that our code will more or less be the same:
+
+```
+from app.models import Data
+from app import db
+from multiprocessing import Pool,Manager
+import time
+
+def generate(query):
+    for elem in query:
+        yield(elem)
+
+def summation(elem,dicter):
+    dicter["current_sum"] += elem
+        
+def get_sum():
+    manager = Manager()
+    dicter = manager.dict()
+    dicter["current_sum"] = 0
+    query = db.session.query(Data).yield_per(100).enable_eagerloads(False)
+    get_elem = generate(query)
+    next_elem = next(get_elem)
+    pool = Pool()
+    while next_elem:
+        pool.apply_async(summation,args=(next_elem.datum,dicter,))
+        try:
+            next_elem = next(get_elem)
+        except:
+            next_elem = False
+    return dicter["current_sum"]
+
+def get_sum_without_generate():
+    manager = Manager()
+    dicter = manager.dict()
+    dicter["current_sum"] = 0
+    query = db.session.query(Data).yield_per(100).enable_eagerloads(False)
+    pool = Pool()
+    for elem in query:
+        pool.apply_async(summation,args=(elem.datum,dicter,))
+    return dicter["current_sum"]
+
+def for_loop_get_sum(listing):
+    summation = 0
+    for i in listing:
+        summation += i
+    return summation
+
+def time_comparison():
+    print("get_sum_generator")
+    start = time.clock()
+    get_sum()
+    print(time.clock() - start)
+    print("get_sum_for loop")
+    start = time.clock()
+    get_sum_without_generate()
+    print(time.clock() - start)
+    
+if __name__ == '__main__':
+    time_comparison()
+```
+
+I decided to add two ways to iterate through our lazily loaded data.  Making use of the generator is still the clear winner:
+
+```
+get_sum_generator
+58.781365
+get_sum_for loop
+85.068554
+```
+
+As this data states.  We could try lowering our load to 1.  But this can lead to trouble if we try loading the next element from the database before we finish processing the current element.  100 elements is a safe benchmark for ensuring all of the necessary data is loaded.
+
+
+
+
 

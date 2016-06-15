@@ -1,0 +1,6 @@
+from app.models import Data
+from multiprocessing import Pool,Manager
+
+def get_sum():
+    manager = Manager()
+    dicter = manager.dict()
