@@ -398,7 +398,78 @@ get_sum_for loop
 
 As this data states.  We could try lowering our load to 1.  But this can lead to trouble if we try loading the next element from the database before we finish processing the current element.  100 elements is a safe benchmark for ensuring all of the necessary data is loaded.
 
+##Applications 
 
+Now that we know how to work with data over a few contexts - builtin python data structures and databases, let's start applying this to do some data exploration.
+
+One of the simplest ways to describe data is via point statistics.  Let's start with the mean!
+
+averaging.py:
+
+```
+from multiprocessing import Pool,Manager
+import time
+import random
+import statistics
+
+def generate(listing):
+    for elem in listing:
+        yield(elem)
+
+def summation(elem,dicter):
+    dicter["current_sum"] += elem
+    dicter["current_size"] += 1
+    
+def get_average(listing):
+    manager = Manager()
+    dicter = manager.dict()
+    dicter["current_sum"] = 0
+    dicter["current_size"] = 0
+    get_elem = generate(listing)
+    next_elem = next(get_elem)
+    pool = Pool()
+    while next_elem:
+        pool.apply_async(summation,args=(next_elem,dicter,))
+        try:
+            next_elem = next(get_elem)
+        except:
+            next_elem = False
+    return dicter["current_sum"]/float(dicter["current_size"])
+
+def for_loop_get_average(listing):
+    summation = 0
+    for i in listing:
+        summation += i
+    return float(summation)/len(listing)
+
+def time_comparison(list_size):
+    to_compute = [random.randint(0,10000) for _ in range(list_size)]
+    print("standard for loop")
+    start = time.clock()
+    for_loop_ave = for_loop_get_average(to_compute)
+    print(time.clock() - start)
+    print("multiprocessing version")
+    start = time.clock()
+    multithreaded_ave = get_average(to_compute)
+    print(time.clock() - start)
+    print("making use of the built-in sum")
+    start = time.clock()
+    statistics_ave = statistics.mean(to_compute)
+    print(time.clock() - start)
+    print("Correctness check:")
+    print("all three equal:",for_loop_ave == multithreaded_ave == statistics_ave)
+    print("for_loop and builtin equal",for_loop_ave == statistics_ave)
+    
+if __name__ == '__main__':
+    for size in [5,50,500,1000,10000,10000000,100000000]:
+        print("For ",size)
+        time_comparison(size)
+        print()
+```
+
+As you can see we simply make use of the online average we created before to process all our elements in `average`.  In the for loop version of the code we simply divide by the number of elements at the end.  And we can make use of the builtin - statistics.mean like before.
+
+Let's see what kind of performance gains we get!
 
 
 
